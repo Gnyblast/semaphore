@@ -294,4 +294,5 @@ export default {
   taskLocation: '位置',
   empty: '空',
   noValues: '沒有值',
+  limit: '限制',
 };

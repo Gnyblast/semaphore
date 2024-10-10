@@ -294,4 +294,5 @@ export default {
   taskLocation: '위치',
   empty: '비어 있음',
   noValues: '값 없음',
+  limit: '한계',
 };

@@ -294,4 +294,5 @@ export default {
   taskLocation: '場所',
   empty: '空',
   noValues: '値がありません',
+  limit: '制限',
 };

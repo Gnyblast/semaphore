@@ -294,4 +294,5 @@ export default {
   taskLocation: 'Emplacement',
   empty: 'Vide',
   noValues: 'Aucune valeur',
+  limit: 'Limite',
 };

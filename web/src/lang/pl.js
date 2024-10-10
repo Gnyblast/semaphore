@@ -294,4 +294,5 @@ export default {
   taskLocation: 'Lokalizacja',
   empty: 'Pusty',
   noValues: 'Brak wartości',
+  limit: 'Limit',
 };

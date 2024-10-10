@@ -294,4 +294,5 @@ export default {
   taskLocation: 'Местоположение',
   empty: 'Пусто',
   noValues: 'Нет значений',
+  limit: 'Предел',
 };
