@@ -168,7 +168,7 @@ tasks:
   release:prod:
     desc: Create and publish a release
     cmds:
-      - goreleaser --snapshot
+      - goreleaser
 
   release:test:
     desc: Create a local test release
