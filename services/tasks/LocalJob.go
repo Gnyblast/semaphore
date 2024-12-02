@@ -391,7 +391,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	if hostLimit != "" {
-		t.Log("--limit=" + *t.Task.Limit)
+		t.Log("--limit=" + hostLimit)
 		taskExtraArgs = append(taskExtraArgs, "--limit="+hostLimit)
 	}
 
