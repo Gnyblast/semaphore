@@ -381,9 +381,18 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
+	var hostLimit string = ""
+	if t.Template.Limit != nil && len(*t.Template.Limit) > 0 {
+		hostLimit = *t.Template.Limit
+	}
+
 	if t.Task.Limit != nil && len(*t.Task.Limit) > 0 {
+		hostLimit = *t.Task.Limit
+	}
+
+	if hostLimit != "" {
 		t.Log("--limit=" + *t.Task.Limit)
-		taskExtraArgs = append(taskExtraArgs, "--limit="+*t.Task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+hostLimit)
 	}
 
 	for _, ra := range t.Task.RemovedArguments {
