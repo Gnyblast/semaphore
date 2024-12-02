@@ -194,7 +194,7 @@ func (d *SqlDb) GetUser(userID int) (db.User, error) {
 
 func (d *SqlDb) GetUserCount() (count int, err error) {
 
-	cnt, err := d.sql.SelectInt("select count(*) from `user`")
+	cnt, err := d.sql.SelectInt(d.PrepareQuery("select count(*) from `user`"))
 
 	count = int(cnt)
 

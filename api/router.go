@@ -12,13 +12,13 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/runners"
 
+	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/projects"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/api/tasks"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/gorilla/mux"
 )
 
 var startTime = time.Now().UTC()
@@ -221,6 +221,16 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
+
+	projectUserAPI.Path("/runners").HandlerFunc(projects.GetRunners).Methods("GET", "HEAD")
+	projectUserAPI.Path("/runners").HandlerFunc(projects.AddRunner).Methods("POST")
+
+	projectRunnersAPI := projectUserAPI.PathPrefix("/runners").Subrouter()
+	projectRunnersAPI.Use(projects.RunnerMiddleware)
+	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projects.GetRunner).Methods("GET", "HEAD")
+	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projects.UpdateRunner).Methods("PUT", "POST")
+	projectRunnersAPI.Path("/{runner_id}/active").HandlerFunc(projects.SetRunnerActive).Methods("POST")
+	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projects.DeleteRunner).Methods("DELETE")
 
 	//
 	// Updating and deleting project
@@ -475,6 +485,10 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"ansible":           util.AnsibleVersion(),
 		"web_host":          host,
 		"use_remote_runner": util.Config.UseRemoteRunner,
+
+		"premium_features": map[string]bool{
+			"project_runners": false,
+		},
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

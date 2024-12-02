@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/creack/pty"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/creack/pty"
 )
 
 type AnsiblePlaybook struct {
@@ -24,6 +24,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 
 	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
 	cmd.Env = append(cmd.Env, "ANSIBLE_FORCE_COLOR=True")
+	cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=False")
 	cmd.Env = append(cmd.Env, getEnvironmentVars()...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))

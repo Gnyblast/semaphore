@@ -487,7 +487,12 @@ func (t *TaskRunner) alertInfos() (string, string) {
 	if t.Task.Version != nil {
 		version = *t.Task.Version
 	} else if t.Template.Type != db.TemplateTask {
-		version = "build " + *t.Task.GetIncomingVersion(t.pool.store)
+		v := t.Task.GetIncomingVersion(t.pool.store)
+		if v != nil {
+			version = "build " + *v
+		} else {
+			version = ""
+		}
 	} else {
 		version = ""
 	}

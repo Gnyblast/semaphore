@@ -177,6 +177,12 @@ func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
 }
 
 func (d *BoltDb) GetUserCount() (count int, err error) {
+	var users []db.User
+	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, nil, &users)
+	if err != nil {
+		return
+	}
+	count = len(users)
 	return
 }
 

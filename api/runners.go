@@ -9,14 +9,6 @@ import (
 	"github.com/gorilla/context"
 )
 
-//type minimalGlobalRunner struct {
-//	ID               int    `json:"id"`
-//	Name             string `json:"name"`
-//	Active           bool   `json:"active"`
-//	Webhook          string `db:"webhook" json:"webhook"`
-//	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
-//}
-
 func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
 	runners, err := helpers.Store(r).GetGlobalRunners(false)
 

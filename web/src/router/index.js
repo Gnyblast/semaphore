@@ -45,6 +45,10 @@ const routes = [
     component: Activity,
   },
   {
+    path: '/project/:projectId/runners',
+    component: Runners,
+  },
+  {
     path: '/project/:projectId/schedule',
     component: Schedule,
   },

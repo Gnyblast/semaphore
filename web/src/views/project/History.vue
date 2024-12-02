@@ -1,26 +1,17 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
         {{ $t('dashboard2') }}
       </v-toolbar-title>
     </v-toolbar>
 
-    <v-tabs show-arrows class="pl-4">
-      <v-tab
-        v-if="projectType === ''"
-        key="history"
-        :to="`/project/${projectId}/history`"
-      >{{ $t('history') }}</v-tab>
-      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
-      <v-tab
-        v-if="can(USER_PERMISSIONS.updateProject)"
-        key="settings"
-        :to="`/project/${projectId}/settings`"
-      >{{ $t('settings') }}
-      </v-tab>
-    </v-tabs>
+    <DashboardMenu
+      :project-id="projectId"
+      :project-type="projectType"
+      :can-update-project="can(USER_PERMISSIONS.updateProject)"
+    />
 
     <v-data-table
       :headers="headers"
@@ -102,6 +93,7 @@ import TaskLink from '@/components/TaskLink.vue';
 import socket from '@/socket';
 import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import AppsMixin from '@/components/AppsMixin';
+import DashboardMenu from '@/components/DashboardMenu.vue';
 
 export default {
   mixins: [ItemListPageBase, AppsMixin],
@@ -110,7 +102,7 @@ export default {
     return { TEMPLATE_TYPE_ICONS };
   },
 
-  components: { TaskStatus, TaskLink },
+  components: { DashboardMenu, TaskStatus, TaskLink },
 
   watch: {
     async projectId() {

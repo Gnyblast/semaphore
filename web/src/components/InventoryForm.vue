@@ -9,7 +9,8 @@
       :value="formError"
       color="error"
       class="pb-2"
-    >{{ formError }}</v-alert>
+    >{{ formError }}
+    </v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -31,13 +32,13 @@
     ></v-select>
 
     <v-select
-        v-model="item.become_key_id"
-        :label="$t('sudoCredentialsOptional')"
-        clearable
-        :items="loginPasswordKeys"
-        item-value="id"
-        item-text="name"
-        :disabled="formSaving"
+      v-model="item.become_key_id"
+      :label="$t('sudoCredentialsOptional')"
+      clearable
+      :items="loginPasswordKeys"
+      item-value="id"
+      item-text="name"
+      :disabled="formSaving"
     ></v-select>
 
     <v-select
@@ -72,19 +73,23 @@
     ></v-select>
 
     <codemirror
-        :style="{ border: '1px solid lightgray' }"
-        v-model.trim="item.inventory"
-        :options="cmOptions"
-        v-if="item.type === 'static' || item.type === 'static-yaml'"
-        :placeholder="$t('enterInventory')"
+      :class="{
+        'vue-codemirror--static': item.type === 'static',
+        'vue-codemirror--static-yaml': item.type === 'static-yaml',
+      }"
+      :style="{ border: '1px solid lightgray' }"
+      v-model.trim="item.inventory"
+      :options="cmOptions"
+      v-if="item.type === 'static' || item.type === 'static-yaml'"
+      :placeholder="$t('enterInventory')"
     />
 
     <v-alert
-        dense
-        text
-        class="mt-4"
-        type="info"
-        v-if="item.type === 'static'"
+      dense
+      text
+      class="mt-4"
+      type="info"
+      v-if="item.type === 'static'"
     >
       {{ $t('staticInventoryExample') }}
       <pre style="font-size: 14px;">[website]
@@ -93,11 +98,11 @@
     </v-alert>
 
     <v-alert
-        dense
-        text
-        class="mt-4"
-        type="info"
-        v-if="item.type === 'static-yaml'"
+      dense
+      text
+      class="mt-4"
+      type="info"
+      v-if="item.type === 'static-yaml'"
     >
       {{ $t('staticYamlInventoryExample') }}
       <pre style="font-size: 14px;">all:
@@ -112,6 +117,14 @@
 <style>
 .CodeMirror {
   height: 160px !important;
+}
+
+.v-dialog--fullscreen .vue-codemirror--static .CodeMirror {
+  height: calc(100vh - 540px) !important;
+}
+
+.v-dialog--fullscreen .vue-codemirror--static-yaml .CodeMirror {
+  height: calc(100vh - 600px) !important;
 }
 </style>
 <script>

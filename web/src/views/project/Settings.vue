@@ -12,15 +12,11 @@
       <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
-    <v-tabs show-arrows class="pl-4">
-      <v-tab
-        v-if="projectType === ''"
-        key="history"
-        :to="`/project/${projectId}/history`"
-      >{{ $t('history') }}</v-tab>
-      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
-      <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
-    </v-tabs>
+    <DashboardMenu
+      :project-id="projectId"
+      :project-type="projectType"
+      :can-update-project="true"
+    />
 
     <div class="project-settings-form">
       <div style="height: 300px;">
@@ -107,9 +103,10 @@ import { getErrorMessage } from '@/lib/error';
 import axios from 'axios';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import delay from '@/lib/delay';
+import DashboardMenu from '@/components/DashboardMenu.vue';
 
 export default {
-  components: { YesNoDialog, ProjectForm },
+  components: { DashboardMenu, YesNoDialog, ProjectForm },
   props: {
     projectId: Number,
     projectType: String,

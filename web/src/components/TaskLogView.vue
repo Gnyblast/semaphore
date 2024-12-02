@@ -7,8 +7,8 @@
     >{{ item.message }}
     </v-alert>
 
-    <v-container class="pa-0 mb-2">
-      <v-row no-gutters>
+    <v-container fluid class="pa-0 mb-2 overflow-auto">
+      <v-row no-gutters class="flex-nowrap">
         <v-col>
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
@@ -20,7 +20,7 @@
             </v-list-item>
           </v-list>
         </v-col>
-        <v-col>
+        <v-col class="pr-4">
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content v-if="item.user_id != null">
@@ -33,7 +33,7 @@
             </v-list-item>
           </v-list>
         </v-col>
-        <v-col>
+        <v-col class="pr-4">
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
@@ -123,6 +123,10 @@
   padding: 5px 10px 50px;
 }
 
+.v-dialog--fullscreen .task-log-records {
+  height: calc(100vh - 136px);
+}
+
 .task-log-view--with-message .task-log-records {
   height: calc(100vh - 300px);
 }
@@ -140,7 +144,7 @@
 
 .task-log-records__output {
   width: 100%;
-  white-space: pre;
+  white-space: pre-wrap;
 }
 
 @media #{map-get($display-breakpoints, 'sm-and-down')} {

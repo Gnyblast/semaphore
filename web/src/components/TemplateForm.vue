@@ -284,6 +284,7 @@
         <ArgsPicker
           :vars="args"
           @change="setArgs"
+          title="CLI args"
         />
 
         <v-checkbox

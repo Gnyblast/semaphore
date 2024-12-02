@@ -79,7 +79,18 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
-		runners, err = t.taskPool.store.GetGlobalRunners(true)
+		var projectRunners []db.Runner
+		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true)
+		if err != nil {
+			return
+		}
+		var globalRunners []db.Runner
+		globalRunners, err = t.taskPool.store.GetGlobalRunners(true)
+		if err != nil {
+			return
+		}
+		runners = append(runners, projectRunners...)
+		runners = append(runners, globalRunners...)
 	})
 
 	if err != nil {

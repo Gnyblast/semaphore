@@ -71,9 +71,10 @@
 
     <EditDialog
       v-model="taskLogDialog"
-      save-button-text="Delete"
       :max-width="1000"
       :hide-buttons="true"
+      :expandable="true"
+      name="TaskLogDialog"
       @close="onTaskLogDialogClosed()"
     >
       <template v-slot:title={}>
@@ -528,6 +529,7 @@
         :isAdmin="(user || {}).admin"
         :webHost="(systemInfo || {}).web_host"
         :version="(systemInfo || {version: ''}).version.split('-')[0]"
+        :premiumFeatures="((systemInfo || {premium_features: {}}).premium_features)"
         :user="user"
       ></router-view>
     </v-main>

@@ -51,6 +51,7 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      style="max-width: 800px;"
     >
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">

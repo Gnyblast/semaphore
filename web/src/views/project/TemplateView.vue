@@ -94,7 +94,7 @@
       </v-btn>
     </v-toolbar>
 
-    <v-container>
+    <v-container fluid>
       <v-alert
         text
         type="info"
@@ -105,7 +105,7 @@
 
       <v-row>
         <v-col>
-          <v-list subheader dense>
+          <v-list subheader>
             <v-list-item>
               <v-list-item-icon>
                 <v-icon>mdi-book-play</v-icon>
@@ -119,7 +119,7 @@
           </v-list>
         </v-col>
         <v-col>
-          <v-list subheader dense>
+          <v-list subheader>
             <v-list-item>
               <v-list-item-icon>
                 <v-icon>{{ TEMPLATE_TYPE_ICONS[item.type] }}</v-icon>
@@ -134,7 +134,7 @@
           </v-list>
         </v-col>
         <v-col>
-          <v-list subheader dense>
+          <v-list subheader>
             <v-list-item>
               <v-list-item-icon>
                 <v-icon>mdi-monitor</v-icon>
@@ -150,7 +150,7 @@
           </v-list>
         </v-col>
         <v-col>
-          <v-list subheader dense>
+          <v-list subheader>
             <v-list-item>
               <v-list-item-icon>
                 <v-icon>mdi-code-braces</v-icon>
@@ -165,7 +165,7 @@
           </v-list>
         </v-col>
         <v-col>
-          <v-list subheader dense>
+          <v-list subheader>
             <v-list-item>
               <v-list-item-icon>
                 <v-icon>mdi-git</v-icon>

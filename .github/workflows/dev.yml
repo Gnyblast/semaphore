@@ -569,7 +569,7 @@ jobs:
             semaphoreui/semaphore
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |
@@ -624,7 +624,7 @@ jobs:
             semaphoreui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |
