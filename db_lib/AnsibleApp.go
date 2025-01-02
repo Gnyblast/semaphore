@@ -61,15 +61,15 @@ func (t *AnsibleApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *AnsibleApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
-	return t.Playbook.RunPlaybook(args, environmentVars, inputs, cb)
+func (t *AnsibleApp) Run(args LocalAppRunningArgs) error {
+	return t.Playbook.RunPlaybook(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 }
 
 func (t *AnsibleApp) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *AnsibleApp) InstallRequirements(environmentVars *[]string) error {
+func (t *AnsibleApp) InstallRequirements(environmentVars []string, params interface{}) error {
 	if err := t.installCollectionsRequirements(); err != nil {
 		return err
 	}

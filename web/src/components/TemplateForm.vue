@@ -74,7 +74,11 @@
 
     <v-row>
       <v-col cols="12" md="6" class="pb-0">
-        <v-card class="mb-6" :color="$vuetify.theme.dark ? '#212121' : 'white'">
+        <v-card
+          class="mb-6"
+          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          style="background: #8585850f"
+        >
           <v-tabs
             fixed-tabs
             v-model="itemTypeIndex"
@@ -314,11 +318,15 @@ import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
-import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../lib/constants';
+import {
+  TEMPLATE_TYPE_ICONS,
+  TEMPLATE_TYPE_TITLES,
+} from '@/lib/constants';
+import AppFieldsMixin from '@/components/AppFieldsMixin';
 import SurveyVars from './SurveyVars';
 
 export default {
-  mixins: [ItemFormBase],
+  mixins: [ItemFormBase, AppFieldsMixin],
 
   components: {
     TemplateVaults,
@@ -328,7 +336,6 @@ export default {
 
   props: {
     sourceItemId: Number,
-    fields: Object,
     app: String,
   },
 
@@ -399,6 +406,7 @@ export default {
   },
 
   computed: {
+
     isLoaded() {
       if (this.isNew && this.sourceItemId == null) {
         return true;
@@ -411,23 +419,12 @@ export default {
         && this.schedules != null
         && this.views != null;
     },
+
   },
 
   methods: {
     setArgs(args) {
       this.args = args;
-    },
-
-    fieldLabel(f) {
-      return this.$t((this.fields[f] || { label: f }).label);
-    },
-
-    needField(f) {
-      return this.fields[f] != null;
-    },
-
-    isFieldRequired(f) {
-      return this.fields[f] != null && !this.fields[f].optional;
     },
 
     setSurveyVars(v) {
@@ -461,11 +458,19 @@ export default {
         responseType: 'json',
       })).data;
 
-      this.inventory = (await axios({
-        keys: 'get',
-        url: `/api/project/${this.projectId}/inventory`,
-        responseType: 'json',
-      })).data;
+      this.inventory = [
+        ...(await axios({
+          keys: 'get',
+          url: `/api/project/${this.projectId}/inventory?app=${this.app}&template_id=${this.itemId}`,
+          responseType: 'json',
+        })).data,
+
+        ...(await axios({
+          keys: 'get',
+          url: `/api/project/${this.projectId}/inventory?app=${this.app}`,
+          responseType: 'json',
+        })).data,
+      ];
 
       this.environment = (await axios({
         keys: 'get',
@@ -478,6 +483,7 @@ export default {
         url: `/api/project/${this.projectId}/templates`,
         responseType: 'json',
       })).data;
+
       const builds = [];
       const deploys = [];
       template.forEach((t) => {

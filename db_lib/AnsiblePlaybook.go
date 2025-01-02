@@ -18,7 +18,7 @@ type AnsiblePlaybook struct {
 	Logger     task_logger.Logger
 }
 
-func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
+func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = p.GetFullPath()
 
@@ -28,10 +28,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd.Env = append(cmd.Env, getEnvironmentVars()...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
-
-	if environmentVars != nil {
-		cmd.Env = append(cmd.Env, *environmentVars...)
-	}
+	cmd.Env = append(cmd.Env, environmentVars...)
 
 	return cmd
 }
@@ -42,7 +39,7 @@ func (p AnsiblePlaybook) runCmd(command string, args []string) error {
 	return cmd.Run()
 }
 
-func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
+func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
 	p.Logger.LogCmd(cmd)
 

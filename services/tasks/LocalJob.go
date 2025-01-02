@@ -56,6 +56,10 @@ func (t *LocalJob) SetStatus(status task_logger.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
+func (t *LocalJob) SetCommit(hash, message string) {
+	t.Logger.SetCommit(hash, message)
+}
+
 func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]interface{}, err error) {
 
 	extraVars = make(map[string]interface{})
@@ -241,6 +245,16 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		return
 	}
 
+	var params db.TerraformTaskParams
+	err = t.Task.FillParams(&params)
+	if err != nil {
+		return
+	}
+
+	if params.Destroy {
+		args = append(args, "-destroy")
+	}
+
 	for name, value := range extraVars {
 		if name == "semaphore_vars" {
 			continue
@@ -326,15 +340,22 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
-	if t.Task.Debug {
+	var params db.AnsibleTaskParams
+
+	err = t.Task.FillParams(&params)
+	if err != nil {
+		return
+	}
+
+	if params.Debug {
 		args = append(args, "-vvvv")
 	}
 
-	if t.Task.Diff {
+	if params.Diff {
 		args = append(args, "--diff")
 	}
 
-	if t.Task.DryRun {
+	if params.DryRun {
 		args = append(args, "--check")
 	}
 
@@ -439,7 +460,31 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	return
 }
 
-func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
+func (t *LocalJob) getParams() (params interface{}, err error) {
+	switch t.Template.App {
+	case db.AppAnsible:
+		params = &db.AnsibleTaskParams{}
+	case db.AppTerraform, db.AppTofu:
+		params = &db.TerraformTaskParams{}
+	default:
+		params = &db.DefaultTaskParams{}
+	}
+
+	err = t.Task.FillParams(params)
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (err error) {
+
+	defer func() {
+		t.destroyKeys()
+		t.destroyInventoryFile()
+	}()
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
@@ -448,15 +493,19 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		return
 	}
 
-	err = t.prepareRun(&environmentVariables)
+	params, err := t.getParams()
+	if err != nil {
+		return
+	}
+
+	if t.Template.App.IsTerraform() && alias != "" {
+		environmentVariables = append(environmentVariables, "TF_HTTP_ADDRESS="+util.GetPublicAliasURL("terraform", alias))
+	}
+
+	err = t.prepareRun(environmentVariables, params)
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		t.destroyKeys()
-		t.destroyInventoryFile()
-	}()
 
 	var args []string
 	var inputs map[string]string
@@ -495,13 +544,20 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		}
 	}
 
-	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {
-		t.Process = p
+	return t.App.Run(db_lib.LocalAppRunningArgs{
+		CliArgs:         args,
+		EnvironmentVars: environmentVariables,
+		Inputs:          inputs,
+		TaskParams:      params,
+		Callback: func(p *os.Process) {
+			t.Process = p
+		},
 	})
 
 }
 
-func (t *LocalJob) prepareRun(environmentVars *[]string) error {
+func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) error {
+
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
 	if err := checkTmpDir(util.Config.TmpPath); err != nil {
@@ -540,7 +596,7 @@ func (t *LocalJob) prepareRun(environmentVars *[]string) error {
 		return err
 	}
 
-	if err := t.App.InstallRequirements(environmentVars); err != nil {
+	if err := t.App.InstallRequirements(environmentVars, params); err != nil {
 		t.Log("Running galaxy failed: " + err.Error())
 		return err
 	}
@@ -610,18 +666,16 @@ func (t *LocalJob) checkoutRepository() error {
 
 	// store commit to TaskRunner table
 
-	//commitHash, err := repo.GetLastCommitHash()
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//commitMessage, _ := repo.GetLastCommitMessage()
-	//
-	//t.task.CommitHash = &commitHash
-	//t.task.CommitMessage = commitMessage
-	//
-	//return t.pool.store.UpdateTask(t.task)
+	commitHash, err := repo.GetLastCommitHash()
+
+	if err != nil {
+		return err
+	}
+
+	commitMessage, _ := repo.GetLastCommitMessage()
+
+	t.SetCommit(commitHash, commitMessage)
+
 	return nil
 }
 

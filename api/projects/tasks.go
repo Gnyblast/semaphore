@@ -2,14 +2,15 @@ package projects
 
 import (
 	"errors"
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // AddTask inserts a task into the database and returns a header or returns error
@@ -23,13 +24,18 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTask, err := helpers.TaskPool(r).AddTask(taskObj, &user.ID, project.ID)
+	tpl, err := helpers.Store(r).GetTemplate(project.ID, taskObj.TemplateID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	newTask, err := helpers.TaskPool(r).AddTask(taskObj, &user.ID, project.ID, tpl.App.NeedTaskAlias())
 
 	if errors.Is(err, tasks.ErrInvalidSubscription) {
 		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
 		return
 	} else if err != nil {
-
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -162,6 +168,24 @@ func ConfirmTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func RejectTask(w http.ResponseWriter, r *http.Request) {
+	targetTask := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
+	if targetTask.ProjectID != project.ID {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err := helpers.TaskPool(r).RejectTask(targetTask)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func StopTask(w http.ResponseWriter, r *http.Request) {
 	targetTask := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
@@ -217,4 +241,52 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func GetTaskStats(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+
+	var tplID *int
+	if tpl := context.Get(r, "template"); tpl != nil {
+		id := tpl.(db.Template).ID
+		tplID = &id
+	}
+
+	filter := db.TaskFilter{}
+
+	if start := r.URL.Query().Get("start"); start != "" {
+		d, err := time.Parse("2006-01-02", start)
+		if err != nil {
+			helpers.WriteErrorStatus(w, "Invalid start date", http.StatusBadRequest)
+			return
+		}
+		filter.Start = &d
+	}
+
+	if end := r.URL.Query().Get("end"); end != "" {
+		d, err := time.Parse("2006-01-02", end)
+		if err != nil {
+			helpers.WriteErrorStatus(w, "Invalid end date", http.StatusBadRequest)
+			return
+		}
+		filter.End = &d
+	}
+
+	if userId := r.URL.Query().Get("user_id"); userId != "" {
+		u, err := strconv.Atoi(userId)
+		if err != nil {
+			helpers.WriteErrorStatus(w, "Invalid user_id", http.StatusBadRequest)
+			return
+		}
+		filter.UserID = &u
+	}
+
+	stats, err := helpers.Store(r).GetTaskStats(project.ID, tplID, db.TaskStatUnitDay, filter)
+	if err != nil {
+		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task stats from database"})
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, stats)
 }

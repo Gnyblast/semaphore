@@ -69,3 +69,7 @@ func (d *BoltDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db
 
 	return
 }
+
+func (d *BoltDb) deleteTemplateVault(projectID int, vaultID int, tx *bbolt.Tx) error {
+	return d.deleteObject(projectID, db.TemplateVaultProps, intObjectID(vaultID), tx)
+}

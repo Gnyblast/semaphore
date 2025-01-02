@@ -130,3 +130,30 @@ func QueryParams(url *url.URL) db.RetrieveQueryParams {
 		SortInverted: url.Query().Get("order") == "desc",
 	}
 }
+
+func QueryParamsWithOwner(url *url.URL, props db.ObjectProps) db.RetrieveQueryParams {
+	res := QueryParams(url)
+
+	hasOwnerFilter := false
+
+	for _, ownership := range props.Ownerships {
+		s := url.Query().Get(ownership.ReferringColumnSuffix)
+		if s == "" {
+			continue
+		}
+
+		id, err := strconv.Atoi(s)
+		if err != nil {
+			continue
+		}
+
+		res.Ownership.SetOwnerID(*ownership, id)
+		hasOwnerFilter = true
+	}
+
+	if !hasOwnerFilter {
+		res.Ownership.WithoutOwnerOnly = true
+	}
+
+	return res
+}

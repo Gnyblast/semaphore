@@ -15,16 +15,20 @@
     <v-alert
       color="blue"
       dark
-      icon="mdi-source-fork"
       dismissible
-      v-model="commitAvailable"
-      prominent
+      dense
+      v-model="hasCommit"
+      class="overflow-hidden mt-2"
     >
       <div
         style="font-weight: bold;"
-      >{{ (item.commit_hash || '').substr(0, 10) }}
+      >
+        <v-icon small>mdi-source-fork</v-icon>
+        {{ (item.commit_hash || '').substr(0, 10) }}
       </div>
-      <div v-if="sourceTask && sourceTask.commit_message">{{ sourceTask.commit_message }}</div>
+      <div v-if="sourceTask && sourceTask.commit_message">
+        {{ sourceTask.commit_message.substring(0, 50) }}
+      </div>
     </v-alert>
 
     <v-select
@@ -94,12 +98,28 @@
       />
     </div>
 
-    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item" :app="template.app" />
+    <v-select
+      class="mt-3"
+      v-model="inventory_id"
+      :label="fieldLabel('inventory')"
+      :items="inventory"
+      item-value="id"
+      item-text="name"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+      v-if="needField('inventory')"
+      hide-details
+    ></v-select>
+
+    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item.params" :app="template.app" />
     <TaskParamsForm v-else v-model="item.params" :app="template.app" />
 
     <ArgsPicker
       v-if="template.allow_override_args_in_task"
       :vars="args"
+      title="CLI args"
       @change="setArgs"
       @removed="setRemovedArgs"
     />
@@ -111,30 +131,28 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
-// import { codemirror } from 'vue-codemirror';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/lint/json-lint.js';
-import 'codemirror/addon/display/placeholder.js';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
 import ArgsPicker from '@/components/ArgsPicker.vue';
+import AppFieldsMixin from '@/components/AppFieldsMixin';
 
 export default {
-  mixins: [ItemFormBase],
+  mixins: [ItemFormBase, AppFieldsMixin],
+
   props: {
     templateId: Number,
     sourceTask: Object,
   },
+
   components: {
     ArgsPicker,
     TaskParamsForm,
-    // codemirror,
   },
+
   data() {
     return {
       template: null,
       buildTasks: null,
-      commitAvailable: null,
+      hasCommit: null,
       editedEnvironment: null,
       editedSecretEnvironment: null,
       cmOptions: {
@@ -145,26 +163,42 @@ export default {
         lint: true,
         indentWithTabs: false,
       },
-      // advancedOptions: false,
+      inventory: null,
     };
   },
+
   computed: {
     args() {
       return JSON.parse(this.item.arguments || '[]');
+    },
+
+    app() {
+      return this.template.app;
+    },
+
+    inventory_id: {
+      get() {
+        return (this.item || {}).inventory_id || this.template.inventory_id;
+      },
+      set(newValue) {
+        this.item.inventory_id = newValue;
+      },
     },
   },
 
   watch: {
     needReset(val) {
       if (val) {
-        if (this.item != null) {
+        if (this.item) {
           this.item.template_id = this.templateId;
         }
+        this.inventory = null;
+        this.template = null;
       }
     },
 
     templateId(val) {
-      if (this.item != null) {
+      if (this.item) {
         this.item.template_id = val;
       }
     },
@@ -173,7 +207,7 @@ export default {
       this.assignItem(val);
     },
 
-    commitAvailable(val) {
+    hasCommit(val) {
       if (val == null) {
         this.commit_hash = null;
       }
@@ -221,13 +255,14 @@ export default {
 
       this.editedEnvironment = JSON.parse(v.environment || '{}');
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
-      this.commitAvailable = v.commit_hash != null;
+      this.hasCommit = v.commit_hash != null;
     },
 
     isLoaded() {
       return this.item != null
         && this.template != null
-        && this.buildTasks != null;
+        && this.buildTasks != null
+        && this.inventory != null;
     },
 
     beforeSave() {
@@ -263,7 +298,7 @@ export default {
       })).data.filter((task) => task.status === 'success') : [];
     },
 
-    afterLoadData() {
+    async afterLoadData() {
       if (this.item != null) {
         this.setArgs(JSON.parse(this.template.arguments));
         this.item.limit = this.template.limit;
@@ -272,11 +307,30 @@ export default {
       this.assignItem(this.sourceTask);
       this.item.template_id = this.templateId;
 
+      this.inventory = (await axios({
+        keys: 'get',
+        url: this.getInventoryUrl(),
+        responseType: 'json',
+      })).data;
+
       if (this.item.build_task_id == null
         && this.buildTasks.length > 0
         && this.buildTasks.length > 0) {
         this.item.build_task_id = this.buildTasks[0].id;
       }
+    },
+
+    getInventoryUrl() {
+      let res = `/api/project/${this.projectId}/inventory?app=${this.app}`;
+      switch (this.app) {
+        case 'terraform':
+        case 'tofu':
+          res += `&template_id=${this.templateId}`;
+          break;
+        default:
+          break;
+      }
+      return res;
     },
 
     getItemsUrl() {

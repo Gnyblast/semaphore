@@ -147,7 +147,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	b.inventories, err = store.GetInventories(projectID, db.RetrieveQueryParams{})
+	b.inventories, err = store.GetInventories(projectID, db.RetrieveQueryParams{}, []db.InventoryType{})
 	if err != nil {
 		return
 	}

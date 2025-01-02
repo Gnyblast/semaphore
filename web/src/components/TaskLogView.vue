@@ -1,11 +1,30 @@
 <template>
-  <div class="task-log-view" :class="{'task-log-view--with-message': item.message}">
-    <v-alert
-      type="info"
-      text
-      v-if="item.message"
-    >{{ item.message }}
-    </v-alert>
+  <div
+    class="task-log-view"
+    :class="{'task-log-view--with-message': item.message || item.commit_message}"
+  >
+
+    <div class="overflow-auto text-no-wrap">
+      <v-alert
+        dense
+        class="d-inline-block mb-2 mr-2"
+        text
+        icon="mdi-message-outline"
+        v-if="item.message"
+      >
+        {{ item.message }}
+      </v-alert>
+
+      <v-alert
+        dense
+        class="d-inline-block mb-2"
+        text
+        icon="mdi-source-fork"
+        v-if="item.commit_message"
+      >
+        {{ item.commit_message }}
+      </v-alert>
+    </div>
 
     <v-container fluid class="pa-0 mb-2 overflow-auto">
       <v-row no-gutters class="flex-nowrap">
@@ -68,30 +87,22 @@
       </div>
     </div>
 
-    <div
-      v-if="item.status === 'waiting_confirmation'"
-      class="pl-4"
-      style="
-        background: white;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 55px;
-        display: flex;
-        align-items: center;
-      "
-    >
-      Please confirm this task.
-    </div>
-
     <v-btn
-      color="warning"
-      style="position: absolute; bottom: 10px; right: 170px; width: 150px;"
+      color="success"
+      style="position: absolute; bottom: 10px; right: 250px; width: 70px;"
       v-if="item.status === 'waiting_confirmation'"
       @click="confirmTask()"
     >
-      {{ $t('confirmTask') }}
+      <v-icon>mdi-check</v-icon>
+    </v-btn>
+
+    <v-btn
+      color="warning"
+      style="position: absolute; bottom: 10px; right: 170px; width: 70px;"
+      v-if="item.status === 'waiting_confirmation'"
+      @click="rejectTask()"
+    >
+      <v-icon>mdi-close</v-icon>
     </v-btn>
 
     <v-btn
@@ -110,8 +121,8 @@
 
 @import '~vuetify/src/styles/settings/_variables';
 
-.task-log-view {
-}
+$task-log-header-height: 62px + 64px + 8px;
+$task-log-message-height: 48px;
 
 .task-log-records {
   background: black;
@@ -123,12 +134,19 @@
   padding: 5px 10px 50px;
 }
 
-.v-dialog--fullscreen .task-log-records {
-  height: calc(100vh - 136px);
+.task-log-view--with-message .task-log-records {
+  height: calc(100vh - #{280px + $task-log-message-height});
 }
 
-.task-log-view--with-message .task-log-records {
-  height: calc(100vh - 300px);
+.v-dialog--fullscreen {
+
+  .task-log-records {
+    height: calc(100vh - $task-log-header-height);
+  }
+
+  .task-log-view--with-message .task-log-records {
+    height: calc(100vh - #{$task-log-header-height + $task-log-message-height});
+  }
 }
 
 .task-log-records__record {
@@ -190,7 +208,15 @@ export default {
 
   computed: {
     canStop() {
-      return ['running', 'stopping', 'waiting', 'starting', 'waiting_confirmation', 'confirmed'].includes(this.item.status);
+      return [
+        'running',
+        'stopping',
+        'waiting',
+        'starting',
+        'waiting_confirmation',
+        'confirmed',
+        'rejected',
+      ].includes(this.item.status);
     },
   },
 
@@ -204,6 +230,15 @@ export default {
       await axios({
         method: 'post',
         url: `/api/project/${this.projectId}/tasks/${this.itemId}/confirm`,
+        responseType: 'json',
+        data: {},
+      });
+    },
+
+    async rejectTask() {
+      await axios({
+        method: 'post',
+        url: `/api/project/${this.projectId}/tasks/${this.itemId}/reject`,
         responseType: 'json',
         data: {},
       });
@@ -262,11 +297,11 @@ export default {
         responseType: 'json',
       })).data;
 
-      this.user = (await axios({
+      this.user = this.item.user_id ? (await axios({
         method: 'get',
         url: `/api/users/${this.item.user_id}`,
         responseType: 'json',
-      })).data;
+      })).data : null;
     },
   },
 };

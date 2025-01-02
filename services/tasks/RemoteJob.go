@@ -66,7 +66,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	return
 }
 
-func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
+func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 
 	tsk := t.taskPool.GetTask(t.Task.ID)
 
@@ -76,6 +76,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	tsk.IncomingVersion = incomingVersion
 	tsk.Username = username
+	tsk.Alias = alias
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {

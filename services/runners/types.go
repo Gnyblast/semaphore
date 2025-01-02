@@ -11,6 +11,7 @@ import (
 type JobData struct {
 	Username            string
 	IncomingVersion     *string
+	Alias               string
 	Task                db.Task        `json:"task" binding:"required"`
 	Template            db.Template    `json:"template" binding:"required"`
 	Inventory           db.Inventory   `json:"inventory" binding:"required"`
@@ -35,6 +36,11 @@ type LogRecord struct {
 	Message string    `json:"message" binding:"required"`
 }
 
+type CommitInfo struct {
+	Hash    string `json:"hash" binding:"required"`
+	Message string `json:"message" binding:"required"`
+}
+
 type RunnerProgress struct {
 	Jobs []JobProgress
 }
@@ -43,6 +49,7 @@ type JobProgress struct {
 	ID         int
 	Status     task_logger.TaskStatus
 	LogRecords []LogRecord
+	Commit     *CommitInfo
 }
 
 type RunnerRegistration struct {
@@ -56,18 +63,12 @@ type jobLogRecord struct {
 	record LogRecord
 }
 
-type resourceLock struct {
-	lock   bool
-	holder *job
-}
-
 type job struct {
 	username        string
 	incomingVersion *string
+	alias           string
 
 	// job presents remote or local job information
-	job             *tasks.LocalJob
-	status          task_logger.TaskStatus
-	args            []string
-	environmentVars []string
+	job    *tasks.LocalJob
+	status task_logger.TaskStatus
 }

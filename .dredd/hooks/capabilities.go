@@ -101,24 +101,39 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			repoID = pRepo.ID
 		case "inventory":
 			res, err := store.CreateInventory(db.Inventory{
-				ProjectID:   userProject.ID,
-				Name:        "ITI-" + uid,
-				Type:        "static",
-				SSHKeyID:    &userKey.ID,
-				BecomeKeyID: &userKey.ID,
-				Inventory:   "Test Inventory",
+				ProjectID:    userProject.ID,
+				Name:         "ITI-" + uid,
+				Type:         "static",
+				SSHKeyID:     &userKey.ID,
+				BecomeKeyID:  &userKey.ID,
+				Inventory:    "Test Inventory",
+				RepositoryID: &repoID,
 			})
 			printError(err)
 			inventoryID = res.ID
 		case "environment":
 			pwd := "test-pass"
 			env := "{}"
+			secret := db.EnvironmentSecret{
+				Type:      db.EnvironmentSecretEnv,
+				Name:      "TEST",
+				Secret:    "VALUE",
+				Operation: "create",
+			}
 			res, err := store.CreateEnvironment(db.Environment{
 				ProjectID: userProject.ID,
 				Name:      "ITI-" + uid,
 				JSON:      "{}",
 				Password:  &pwd,
 				ENV:       &env,
+			})
+			printError(err)
+			_, err = store.CreateAccessKey(db.AccessKey{
+				Name:          string(secret.Type) + "." + secret.Name,
+				String:        secret.Secret,
+				EnvironmentID: &res.ID,
+				ProjectID:     &userProject.ID,
+				Type:          db.AccessKeyString,
 			})
 			printError(err)
 			environmentID = res.ID
@@ -139,6 +154,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ViewID:                  &view.ID,
 				App:                     db.AppAnsible,
 				GitBranch:               &branch,
+				SurveyVars:              []db.SurveyVar{},
 			})
 
 			printError(err)
@@ -218,6 +234,7 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)
+	bodyFieldProcessor("build_template_id", nil, &request)
 	if task != nil {
 		bodyFieldProcessor("task_id", task.ID, &request)
 	}

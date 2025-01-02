@@ -101,7 +101,14 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Access Key %s created", key.Name),
 	})
 
-	w.WriteHeader(http.StatusNoContent)
+	// Reload key to drop sensitive fields
+	key, err = helpers.Store(r).GetAccessKey(*newKey.ProjectID, newKey.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusCreated, key)
 }
 
 // UpdateKey updates key in database

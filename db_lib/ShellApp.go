@@ -2,7 +2,6 @@ package db_lib
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -41,17 +40,14 @@ func (r *bashReader) Read(p []byte) (n int, err error) {
 	return len(*r.input) + 1, nil
 }
 
-func (t *ShellApp) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
+func (t *ShellApp) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
-
-	if environmentVars != nil {
-		cmd.Env = append(cmd.Env, *environmentVars...)
-	}
+	cmd.Env = append(cmd.Env, environmentVars...)
 
 	return cmd
 }
@@ -76,11 +72,11 @@ func (t *ShellApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *ShellApp) InstallRequirements(environmentVars *[]string) error {
+func (t *ShellApp) InstallRequirements(environmentVars []string, params interface{}) error {
 	return nil
 }
 
-func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.Cmd {
+func (t *ShellApp) makeShellCmd(args []string, environmentVars []string) *exec.Cmd {
 	var command string
 	var appArgs []string
 	switch t.App {
@@ -107,8 +103,8 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.
 	return t.makeCmd(command, append(appArgs, args...), environmentVars)
 }
 
-func (t *ShellApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
-	cmd := t.makeShellCmd(args, environmentVars)
+func (t *ShellApp) Run(args LocalAppRunningArgs) error {
+	cmd := t.makeShellCmd(args.CliArgs, args.EnvironmentVars)
 	t.Logger.LogCmd(cmd)
 	//cmd.Stdin = &t.reader
 	cmd.Stdin = strings.NewReader("")
@@ -116,6 +112,6 @@ func (t *ShellApp) Run(args []string, environmentVars *[]string, inputs map[stri
 	if err != nil {
 		return err
 	}
-	cb(cmd.Process)
+	args.Callback(cmd.Process)
 	return cmd.Wait()
 }

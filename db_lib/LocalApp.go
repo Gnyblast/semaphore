@@ -27,8 +27,16 @@ func getEnvironmentVars() []string {
 	return res
 }
 
+type LocalAppRunningArgs struct {
+	CliArgs         []string
+	EnvironmentVars []string
+	Inputs          map[string]string
+	TaskParams      interface{}
+	Callback        func(*os.Process)
+}
+
 type LocalApp interface {
 	SetLogger(logger task_logger.Logger) task_logger.Logger
-	InstallRequirements(environmentVars *[]string) error
-	Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error
+	InstallRequirements(environmentVars []string, params interface{}) error
+	Run(args LocalAppRunningArgs) error
 }

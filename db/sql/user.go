@@ -133,6 +133,12 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 }
 
 func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.UserWithProjectRole, err error) {
+
+	pp, err := params.Validate(db.UserProps)
+	if err != nil {
+		return
+	}
+
 	q := squirrel.Select("u.*").
 		Column("pu.role").
 		From("project__user as pu").
@@ -140,13 +146,13 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 		Where("pu.project_id=?", projectID)
 
 	sortDirection := "ASC"
-	if params.SortInverted {
+	if pp.SortInverted {
 		sortDirection = "DESC"
 	}
 
-	switch params.SortBy {
+	switch pp.SortBy {
 	case "name", "username", "email":
-		q = q.OrderBy("u." + params.SortBy + " " + sortDirection)
+		q = q.OrderBy("u." + pp.SortBy + " " + sortDirection)
 	case "role":
 		q = q.OrderBy("pu.role " + sortDirection)
 	default:
@@ -202,7 +208,15 @@ func (d *SqlDb) GetUserCount() (count int, err error) {
 }
 
 func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
-	query, args, err := getSqlForTable("user", params)
+	q := squirrel.Select("*").From("`user`")
+
+	q, err = getQueryForParams(q, "", db.UserProps, params)
+
+	if err != nil {
+		return
+	}
+
+	query, args, err := q.ToSql()
 
 	if err != nil {
 		return

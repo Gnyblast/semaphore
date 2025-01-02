@@ -68,7 +68,13 @@ func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
 func (d *SqlDb) GetEnvironmentSecrets(projectID int, environmentID int) (keys []db.AccessKey, err error) {
 	keys = make([]db.AccessKey, 0)
 
-	q := d.makeObjectsQuery(projectID, db.AccessKeyProps, db.RetrieveQueryParams{}).Where("pe.environment_id = ?", environmentID)
+	q, err := d.makeObjectsQuery(projectID, db.AccessKeyProps, db.RetrieveQueryParams{})
+
+	if err != nil {
+		return
+	}
+
+	q = q.Where("pe.environment_id = ?", environmentID)
 
 	query, args, err := q.ToSql()
 

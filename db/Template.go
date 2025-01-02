@@ -24,6 +24,31 @@ const (
 	AppPulumi     TemplateApp = "pulumi"
 )
 
+func (t TemplateApp) InventoryTypes() []InventoryType {
+	switch t {
+	case AppAnsible:
+		return []InventoryType{InventoryStatic, InventoryStaticYaml, InventoryFile}
+	case AppTerraform:
+		return []InventoryType{InventoryTerraformWorkspace}
+	case AppTofu:
+		return []InventoryType{InventoryTofuWorkspace}
+	default:
+		return []InventoryType{}
+	}
+}
+
+func (t TemplateApp) HasInventoryType(inventoryType InventoryType) bool {
+	types := t.InventoryTypes()
+
+	for _, typ := range types {
+		if typ == inventoryType {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (t TemplateApp) IsTerraform() bool {
 	return t == AppTerraform || t == AppTofu
 }
@@ -35,6 +60,11 @@ const (
 	SurveyVarInt  TemplateType = "int"
 	SurveyVarEnum TemplateType = "enum"
 )
+
+type TerraformTemplateParams struct {
+	AllowDestroy     bool `json:"allow_destroy"`
+	AllowAutoApprove bool `json:"allow_auto_approve"`
+}
 
 type SurveyVarEnumValue struct {
 	Name  string `json:"name" backup:"name"`
@@ -54,6 +84,7 @@ type TemplateFilter struct {
 	ViewID          *int
 	BuildTemplateID *int
 	AutorunOnly     bool
+	App             *TemplateApp
 }
 
 // Template is a user defined model that is used to run a task
@@ -104,6 +135,8 @@ type Template struct {
 	App TemplateApp `db:"app" json:"app"`
 
 	Tasks int `db:"tasks" json:"tasks" backup:"-"`
+
+	TaskParams MapStringAnyField `db:"task_params" json:"task_params"`
 }
 
 func (tpl *Template) Validate() error {

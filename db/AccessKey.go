@@ -78,7 +78,23 @@ type AccessKeyInstallation struct {
 	Script   string
 }
 
-func (key AccessKeyInstallation) Destroy() error {
+func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
+	env = make([]string, 0)
+
+	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
+	if key.SSHAgent != nil {
+		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		if util.Config.SshConfigPath != "" {
+			sshCmd += " -F " + util.Config.SshConfigPath
+		}
+		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
+	}
+
+	return env
+}
+
+func (key *AccessKeyInstallation) Destroy() error {
 	if key.SSHAgent != nil {
 		return key.SSHAgent.Close()
 	}

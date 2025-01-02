@@ -186,7 +186,7 @@ func (p *JobPool) Run() {
 			go func(runningJob *runningJob) {
 				runningJob.SetStatus(task_logger.TaskRunningStatus)
 
-				err := runningJob.job.Run(t.username, t.incomingVersion)
+				err := runningJob.job.Run(t.username, t.incomingVersion, t.alias)
 
 				if runningJob.status.IsFinished() {
 					return
@@ -250,6 +250,7 @@ func (p *JobPool) sendProgress() {
 			ID:         id,
 			LogRecords: j.logRecords,
 			Status:     j.status,
+			Commit:     j.commit,
 		})
 
 		j.logRecords = make([]LogRecord, 0)
@@ -387,7 +388,7 @@ func (p *JobPool) checkNewJobs() {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		logger.ActionError(err, "send request", "upexpected error")
+		logger.ActionError(err, "send request", "unexpected error")
 		return
 	}
 
@@ -465,6 +466,7 @@ func (p *JobPool) checkNewJobs() {
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
+			alias:           newJob.Alias,
 
 			job: &tasks.LocalJob{
 				Task:        newJob.Task,

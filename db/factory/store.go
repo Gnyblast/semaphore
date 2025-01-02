@@ -16,7 +16,7 @@ func CreateStore() db.Store {
 	case util.DbDriverMySQL:
 		return &sql.SqlDb{}
 	case util.DbDriverBolt:
-		return &bolt.BoltDb{}
+		return bolt.CreateBoltDB()
 	case util.DbDriverPostgres:
 		return &sql.SqlDb{}
 	default:

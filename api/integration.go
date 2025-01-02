@@ -257,7 +257,13 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		IntegrationID: &integration.ID,
 	}
 
-	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID)
+	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return

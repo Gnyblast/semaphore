@@ -16,7 +16,7 @@ import (
 )
 
 type Job interface {
-	Run(username string, incomingVersion *string) error
+	Run(username string, incomingVersion *string, alias string) error
 	Kill()
 }
 
@@ -41,6 +41,8 @@ type TaskRunner struct {
 
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
+
+	Alias string
 }
 
 func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {
@@ -155,7 +157,7 @@ func (t *TaskRunner) run() {
 
 	}
 
-	err = t.job.Run(username, incomingVersion)
+	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	if err != nil {
 		t.Log("Running app failed: " + err.Error())
@@ -171,6 +173,7 @@ func (t *TaskRunner) run() {
 		BuildTemplateID: &t.Task.TemplateID,
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
+
 	if err != nil {
 		t.Log("Running app failed: " + err.Error())
 		return
@@ -181,7 +184,7 @@ func (t *TaskRunner) run() {
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.Task.ID,
-		}, nil, tpl.ProjectID)
+		}, nil, tpl.ProjectID, tpl.App.NeedTaskAlias())
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
 			continue
