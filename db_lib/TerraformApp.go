@@ -141,7 +141,13 @@ func (t *TerraformApp) init(environmentVars []string, params *db.TerraformTaskPa
 		return err
 	}
 
-	return cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
@@ -157,12 +163,19 @@ func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []string) error {
 	cmd := t.makeCmd(t.Name, []string{"workspace", "select", "-or-create=true", workspace}, environmentVars)
 	t.Logger.LogCmd(cmd)
+
 	err := cmd.Start()
 	if err != nil {
 		return err
 	}
 
-	return cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) InstallRequirements(environmentVars []string, params interface{}) (err error) {
@@ -204,8 +217,16 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	if err != nil {
 		return err
 	}
+
 	cb(cmd.Process)
-	return cmd.Wait()
+
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
@@ -218,7 +239,14 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 		return err
 	}
 	cb(cmd.Process)
-	return cmd.Wait()
+
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {

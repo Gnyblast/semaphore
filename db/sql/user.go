@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+	"errors"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"golang.org/x/crypto/bcrypt"
@@ -69,22 +70,24 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 			return err
 		}
 		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=?, password=? where id=?",
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=?, password=? where id=?",
 			user.Name,
 			user.Username,
 			user.Email,
 			user.Alert,
 			user.Admin,
+			user.Pro,
 			string(pwdHash),
 			user.ID)
 	} else {
 		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=? where id=?",
 			user.Name,
 			user.Username,
 			user.Email,
 			user.Alert,
 			user.Admin,
+			user.Pro,
 			user.ID)
 	}
 
@@ -186,16 +189,39 @@ func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 }
 
 // GetUser retrieves a user from the database by ID
-func (d *SqlDb) GetUser(userID int) (db.User, error) {
-	var user db.User
+func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 
-	err := d.selectOne(&user, "select * from `user` where id=?", userID)
+	err = d.selectOne(&user, "select * from `user` where id=?", userID)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		err = db.ErrNotFound
 	}
 
-	return user, err
+	if err != nil {
+		return
+	}
+
+	var totp db.UserTotp
+	err = d.selectOne(&totp, "select * from `user__totp` where user_id=?", user.ID)
+
+	if err == nil {
+		user.Totp = &totp
+	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		err = nil
+	}
+
+	return
+}
+
+func (d *SqlDb) GetProUserCount() (count int, err error) {
+
+	cnt, err := d.sql.SelectInt(d.PrepareQuery("select count(*) from `user` where pro"))
+
+	count = int(cnt)
+
+	return
 }
 
 func (d *SqlDb) GetUserCount() (count int, err error) {
@@ -227,14 +253,29 @@ func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err er
 	return
 }
 
-func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser db.User, err error) {
+func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User, err error) {
 	err = d.selectOne(
-		&existingUser,
+		&user,
 		d.PrepareQuery("select * from `user` where email=? or username=?"),
 		email, login)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		err = db.ErrNotFound
+	}
+
+	if err != nil {
+		return
+	}
+
+	var totp db.UserTotp
+	err = d.selectOne(&totp, "select * from `user__totp` where user_id=?", user.ID)
+
+	if err == nil {
+		user.Totp = &totp
+	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		err = nil
 	}
 
 	return
@@ -244,4 +285,37 @@ func (d *SqlDb) GetAllAdmins() (users []db.User, err error) {
 	_, err = d.selectAll(&users, "select * from `user` where `admin` = true")
 
 	return
+}
+
+func (d *SqlDb) AddTotpVerification(userID int, url string, recoveryHash string) (totp db.UserTotp, err error) {
+
+	totp.UserID = userID
+	totp.URL = url
+	totp.RecoveryHash = recoveryHash
+	totp.Created = db.GetParsedTime(time.Now().UTC())
+
+	res, err := d.exec(
+		"insert into user__totp (user_id, url, recovery_hash, created) values (?, ?, ?, ?)",
+		totp.UserID,
+		totp.URL,
+		totp.RecoveryHash,
+		totp.Created)
+
+	if err != nil {
+		return
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return
+	}
+
+	totp.ID = int(id)
+
+	return
+}
+
+func (d *SqlDb) DeleteTotpVerification(userID int, totpID int) error {
+	_, err := d.exec("delete from user__totp where user_id=? and id = ?", userID, totpID)
+	return err
 }

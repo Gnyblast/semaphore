@@ -46,7 +46,7 @@
             "runtimeExecutable": "task",
             "args": ["e2e:test:local"],
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
+            "console": "integratedTerminal"
         }
     ]
 }

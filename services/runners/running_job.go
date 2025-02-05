@@ -3,7 +3,9 @@ package runners
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -20,6 +22,8 @@ type runningJob struct {
 
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
+
+	logWG sync.WaitGroup
 }
 
 func (p *runningJob) AddStatusListener(l task_logger.StatusListener) {
@@ -59,8 +63,12 @@ func (p *runningJob) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	go p.logPipe(bufio.NewReader(stderr))
-	go p.logPipe(bufio.NewReader(stdout))
+	go p.logPipe(stderr)
+	go p.logPipe(stdout)
+}
+
+func (p *runningJob) WaitLog() {
+	p.logWG.Wait()
 }
 
 func (p *runningJob) SetCommit(hash, message string) {
@@ -83,15 +91,19 @@ func (p *runningJob) SetStatus(status task_logger.TaskStatus) {
 	}
 }
 
-func (p *runningJob) logPipe(reader *bufio.Reader) {
-	line, err := tasks.Readln(reader)
-	for err == nil {
+func (p *runningJob) logPipe(reader io.Reader) {
+	p.logWG.Add(1)
+	defer p.logWG.Done()
+
+	scanner := bufio.NewScanner(reader)
+
+	for scanner.Scan() {
+		line := scanner.Text()
 		p.Log(line)
-		line, err = tasks.Readln(reader)
 	}
 
-	if err != nil && err.Error() != "EOF" {
+	if scanner.Err() != nil && scanner.Err().Error() != "EOF" {
 		//don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
-		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read TaskRunner output"})
+		util.LogWarningF(scanner.Err(), log.Fields{"error": "Failed to read TaskRunner output"})
 	}
 }

@@ -82,6 +82,9 @@ func Route() *mux.Router {
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
+	publicAPIRouter.HandleFunc("/auth/verify", verifySession).Methods("POST")
+	publicAPIRouter.HandleFunc("/auth/recovery", recoverySession).Methods("POST")
+
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
@@ -171,6 +174,9 @@ func Route() *mux.Router {
 	userPasswordAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
 	userPasswordAPI.Use(getUserMiddleware)
 	userPasswordAPI.Path("/password").HandlerFunc(updateUserPassword).Methods("POST")
+	userPasswordAPI.Path("/2fas/totp").HandlerFunc(enableTotp).Methods("POST")
+	userPasswordAPI.Path("/2fas/totp/{totp_id}/qr").HandlerFunc(totpQr).Methods("GET")
+	userPasswordAPI.Path("/2fas/totp/{totp_id}").HandlerFunc(disableTotp).Methods("DELETE")
 
 	projectGet := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectGet.Use(projects.ProjectMiddleware)
@@ -500,10 +506,14 @@ func serveFile(w http.ResponseWriter, r *http.Request, name string) {
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
-	host := ""
+	host := util.GetPublicHost()
 
-	if util.WebHostURL != nil {
-		host = util.WebHostURL.String()
+	var authMethods LoginAuthMethods
+
+	if util.Config.Auth.Totp.Enabled {
+		authMethods.Totp = &LoginTotpAuthMethod{
+			AllowRecovery: util.Config.Auth.Totp.AllowRecovery,
+		}
 	}
 
 	body := map[string]interface{}{
@@ -511,6 +521,8 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"ansible":           util.AnsibleVersion(),
 		"web_host":          host,
 		"use_remote_runner": util.Config.UseRemoteRunner,
+
+		"auth_methods": authMethods,
 
 		"premium_features": map[string]bool{
 			"project_runners":   false,

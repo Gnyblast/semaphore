@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
@@ -43,6 +44,8 @@ type TaskRunner struct {
 	logListeners    []task_logger.LogListener
 
 	Alias string
+
+	logWG sync.WaitGroup
 }
 
 func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {

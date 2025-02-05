@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -166,7 +167,7 @@ func (task *Task) ValidateNewTask(template Template) error {
 func (task *TaskWithTpl) Fill(d Store) error {
 	if task.BuildTaskID != nil {
 		build, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			return nil
 		}
 		if err != nil {
@@ -191,7 +192,6 @@ type TaskWithTpl struct {
 // TaskOutput is the ansible log output from the task
 type TaskOutput struct {
 	TaskID int       `db:"task_id" json:"task_id"`
-	Task   string    `db:"task" json:"task"`
 	Time   time.Time `db:"time" json:"time"`
 	Output string    `db:"output" json:"output"`
 }

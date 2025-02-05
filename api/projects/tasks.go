@@ -36,7 +36,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
 		return
 	} else if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
+		util.LogErrorF(err, log.Fields{"error": "Cannot write new event to database"})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -63,7 +63,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit int) {
 	}
 
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -99,14 +99,14 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 		taskID, err := helpers.GetIntParam("task_id", w, r)
 
 		if err != nil {
-			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task_id from request"})
+			util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task_id from request"})
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		task, err := helpers.Store(r).GetTask(project.ID, taskID)
 		if err != nil {
-			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task from database"})
+			util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task from database"})
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -125,7 +125,7 @@ func GetTaskStages(w http.ResponseWriter, r *http.Request) {
 	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
 
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -142,7 +142,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
 
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -235,7 +235,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 
 	err := helpers.Store(r).DeleteTaskWithOutputs(project.ID, targetTask.ID)
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -283,7 +283,7 @@ func GetTaskStats(w http.ResponseWriter, r *http.Request) {
 
 	stats, err := helpers.Store(r).GetTaskStats(project.ID, tplID, db.TaskStatUnitDay, filter)
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task stats from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task stats from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

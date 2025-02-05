@@ -89,6 +89,17 @@ func (d *BoltDb) ExpireSession(userID int, sessionID int) (err error) {
 	return
 }
 
+func (d *BoltDb) VerifySession(userID int, sessionID int) (err error) {
+	var session db.Session
+	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)
+	if err != nil {
+		return
+	}
+	session.Verified = true
+	err = d.updateObject(userID, db.SessionProps, session)
+	return
+}
+
 func (d *BoltDb) TouchSession(userID int, sessionID int) (err error) {
 	var session db.Session
 	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)

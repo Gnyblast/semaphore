@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+func (d *SqlDb) VerifySession(userID int, sessionID int) error {
+	_, err := d.exec("update session set verified = true where id=? and user_id=?", sessionID, userID)
+
+	return err
+}
+
 func (d *SqlDb) CreateSession(session db.Session) (db.Session, error) {
 	err := d.sql.Insert(&session)
 	return session, err

@@ -188,22 +188,10 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 		return
 	}
 
-	var templateExtraArgs []string
-	if t.Template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the template extra arguments, must be valid JSON")
-			return
-		}
-	}
-
-	var taskExtraArgs []string
-	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
-			return
-		}
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
 	}
 
 	// Script to run
@@ -217,7 +205,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 	}
 
 	// Include extra args from template
-	args = append(args, templateExtraArgs...)
+	args = append(args, templateArgs...)
 
 	// Include ExtraVars and Survey Vars
 	for name, value := range extraVars {
@@ -227,7 +215,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 	}
 
 	// Include extra args from task
-	args = append(args, taskExtraArgs...)
+	args = append(args, taskArgs...)
 
 	return
 }
@@ -261,6 +249,15 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		}
 		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
+
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
+	}
+
+	args = append(args, templateArgs...)
+	args = append(args, taskArgs...)
 
 	for _, secret := range t.Environment.Secrets {
 		if secret.Type != db.EnvironmentSecretVar {
@@ -384,22 +381,10 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
-	var templateExtraArgs []string
-	if t.Template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the template extra arguments, must be valid JSON")
-			return
-		}
-	}
-
-	var taskExtraArgs []string
-	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
-			return
-		}
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
 	}
 
 	var hostLimit string = ""
@@ -413,38 +398,38 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 	if hostLimit != "" {
 		t.Log("--limit=" + hostLimit)
-		taskExtraArgs = append(taskExtraArgs, "--limit="+hostLimit)
+		taskArgs = append(taskArgs, "--limit="+hostLimit)
 	}
 
 	for _, ra := range t.Task.RemovedArguments {
-		rai := slices.Index(templateExtraArgs, ra)
+		rai := slices.Index(templateArgs, ra)
 		if rai != -1 {
-			templateExtraArgs = append(templateExtraArgs[:rai], templateExtraArgs[rai+1:]...)
+			templateArgs = append(templateArgs[:rai], templateArgs[rai+1:]...)
 		}
 	}
 
-	for _, taskArg := range taskExtraArgs {
-		for tai, tmplArg := range templateExtraArgs {
+	for _, taskArg := range taskArgs {
+		for tai, tmplArg := range templateArgs {
 			ok, err := isCLIArgsOverridden(tmplArg, taskArg)
 			if err != nil {
 				t.Log(err.Error())
 			}
 
 			if ok {
-				templateExtraArgs = append(templateExtraArgs[:tai], templateExtraArgs[tai+1:]...)
+				templateArgs = append(templateArgs[:tai], templateArgs[tai+1:]...)
 				break
 			}
 
-			if slices.Contains(templateExtraArgs, taskArg) {
-				templateExtraArgs = append(templateExtraArgs[:tai], templateExtraArgs[tai+1:]...)
+			if slices.Contains(templateArgs, taskArg) {
+				templateArgs = append(templateArgs[:tai], templateArgs[tai+1:]...)
 			}
 
 		}
 	}
 
-	templateExtraArgs = append(templateExtraArgs, taskExtraArgs...)
+	templateArgs = append(templateArgs, taskArgs...)
 
-	args = append(args, templateExtraArgs...)
+	args = append(args, templateArgs...)
 	// args = append(args, taskExtraArgs...) // old implementation
 	args = append(args, playbookName)
 	fmt.Println(args)
@@ -455,6 +440,27 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleBecomeUser]; ok {
 		inputs["BECOME password"] = line
+	}
+
+	return
+}
+
+func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
+
+	if t.Template.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgs)
+		if err != nil {
+			err = fmt.Errorf("invalid format of the template extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskArgs)
+		if err != nil {
+			err = fmt.Errorf("invalid format of the TaskRunner extra arguments, must be valid JSON")
+			return
+		}
 	}
 
 	return
@@ -682,7 +688,7 @@ func (t *LocalJob) checkoutRepository() error {
 func (t *LocalJob) installVaultKeyFiles() (err error) {
 	t.vaultFileInstallations = make(map[string]db.AccessKeyInstallation)
 
-	if t.Template.Vaults == nil || len(t.Template.Vaults) == 0 {
+	if len(t.Template.Vaults) == 0 {
 		return nil
 	}
 

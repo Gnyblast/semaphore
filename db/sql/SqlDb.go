@@ -45,8 +45,13 @@ func getQueryForParams(q squirrel.SelectBuilder, prefix string, props db.ObjectP
 		orderDirection = "DESC"
 	}
 
-	orderColumn := props.DefaultSortingColumn
-	if pp.SortBy != "" {
+	var orderColumn string
+	if pp.SortBy == "" {
+		orderColumn = props.DefaultSortingColumn
+		if props.SortInverted {
+			orderDirection = "DESC"
+		}
+	} else {
 		orderColumn = pp.SortBy
 	}
 
@@ -191,6 +196,8 @@ func createDb() error {
 		return err
 	}
 
+	defer conn.Close()
+
 	_, err = conn.Exec("create database " + cfg.GetDbName())
 
 	if err != nil {
@@ -323,13 +330,19 @@ func (d *SqlDb) PermanentConnection() bool {
 	return true
 }
 
-func (d *SqlDb) Connect(token string) {
+func (d *SqlDb) Connect(_ string) {
 	sqlDb, err := connect()
 	if err != nil {
 		panic(err)
 	}
 
-	if err := sqlDb.Ping(); err != nil {
+	err = sqlDb.Ping()
+
+	if err != nil {
+		if err = sqlDb.Close(); err != nil {
+			log.Warn("Cannot close database connection: " + err.Error())
+		}
+
 		if err = createDb(); err != nil {
 			panic(err)
 		}

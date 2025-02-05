@@ -3,9 +3,12 @@ package cmd
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
+	"github.com/gorilla/context"
+	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
@@ -13,8 +16,6 @@ import (
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/gorilla/context"
-	"github.com/gorilla/handlers"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -107,7 +108,53 @@ func runService() {
 		store.Close("root")
 	}
 
-	err := http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
+	var err error
+	if util.Config.TLS.Enabled {
+		if util.Config.TLS.HTTPRedirectPort != nil {
+
+			go func() {
+				httpRedirectPort := fmt.Sprintf(":%d", *util.Config.TLS.HTTPRedirectPort)
+				err = http.ListenAndServe(httpRedirectPort, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					target := "https://"
+
+					if util.Config.WebHost != "" {
+						webHost, err2 := url.Parse(util.Config.WebHost)
+						if err2 != nil {
+							log.Panic(err2)
+						}
+						target += webHost.Scheme + webHost.Host + r.URL.Path
+					} else {
+						hostParts := strings.Split(r.Host, ":")
+						host := hostParts[0]
+						target += host + port + r.URL.Path
+					}
+
+					if len(r.URL.RawQuery) > 0 {
+						target += "?" + r.URL.RawQuery
+					}
+
+					if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" {
+						http.Error(w, "http requests forbidden", http.StatusForbidden)
+						return
+					}
+
+					http.Redirect(w, nil, target, http.StatusTemporaryRedirect)
+				}))
+				if err != nil {
+					log.Panic(err)
+				}
+			}()
+		}
+
+		err = http.ListenAndServeTLS(util.Config.Interface+port, util.Config.TLS.CertFile, util.Config.TLS.KeyFile, cropTrailingSlashMiddleware(router))
+
+		if err != nil {
+			log.Panic(err)
+		}
+
+	} else {
+		err = http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
+	}
 
 	if err != nil {
 		log.Panic(err)

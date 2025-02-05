@@ -2,10 +2,13 @@ package util
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/url"
 	"os"
@@ -93,10 +96,9 @@ const (
 
 type RunnerConfig struct {
 	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-
-	Token string `json:"-" env:"SEMAPHORE_RUNNER_TOKEN"`
-
-	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN"`
+	TokenFile         string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?
@@ -112,6 +114,22 @@ type RunnerConfig struct {
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
+type TLSConfig struct {
+	Enabled          bool   `json:"enabled" env:"SEMAPHORE_TLS_ENABLED"`
+	CertFile         string `json:"cert_file" env:"SEMAPHORE_TLS_CERT_FILE"`
+	KeyFile          string `json:"key_file" env:"SEMAPHORE_TLS_KEY_FILE"`
+	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
+}
+
+type TotpConfig struct {
+	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
+	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+}
+
+type AuthConfig struct {
+	Totp *TotpConfig `json:"totp,omitempty"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -122,7 +140,10 @@ type ConfigType struct {
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	TLS  *TLSConfig `json:"tls,omitempty"`
+
+	Auth *AuthConfig `json:"auth,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -225,15 +246,16 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
-func ConfigInit(configPath string, noConfigFile bool) {
+func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	fmt.Println("Loading config")
 
 	Config = NewConfigType()
 	Config.Apps = map[string]App{}
 
 	if !noConfigFile {
-		loadConfigFile(configPath)
+		usedConfigPath = loadConfigFile(configPath)
 	}
+
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
@@ -259,9 +281,11 @@ func ConfigInit(configPath string, noConfigFile bool) {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
 	}
+
+	return
 }
 
-func loadConfigFile(configPath string) {
+func loadConfigFile(configPath string) (usedConfigPath *string) {
 	if configPath == "" {
 		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
 	}
@@ -288,6 +312,7 @@ func loadConfigFile(configPath string) {
 				continue
 			}
 			decodeConfig(file)
+			usedConfigPath = &p
 			break
 		}
 		exitOnConfigFileError(err)
@@ -295,8 +320,11 @@ func loadConfigFile(configPath string) {
 		p := configPath
 		file, err := os.Open(p)
 		exitOnConfigFileError(err)
+		usedConfigPath = &p
 		decodeConfig(file)
 	}
+
+	return
 }
 
 func loadDefaultsToObject(obj interface{}) error {
@@ -729,7 +757,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"postgres://%s:%s@%s",
+				"postgres://%s:%s@%s/postgres",
 				dbUser,
 				url.QueryEscape(dbPass),
 				dbHost)
@@ -865,7 +893,7 @@ func LookupDefaultApps() {
 	}
 }
 
-func GetPublicAliasURL(scope string, alias string) string {
+func GetPublicHost() string {
 	aliasURL := Config.WebHost
 	port := Config.Port
 	if port == "" {
@@ -880,6 +908,13 @@ func GetPublicAliasURL(scope string, alias string) string {
 		aliasURL = "http://localhost:" + port
 	}
 
+	return aliasURL
+
+}
+
+func GetPublicAliasURL(scope string, alias string) string {
+	aliasURL := GetPublicHost()
+
 	if !strings.HasSuffix(aliasURL, "/") {
 		aliasURL += "/"
 	}
@@ -887,4 +922,28 @@ func GetPublicAliasURL(scope string, alias string) string {
 	aliasURL += "api/" + scope + "/" + alias
 
 	return aliasURL
+}
+
+func GenerateRecoveryCode() (code string, hash string, err error) {
+
+	buf := make([]byte, 10)
+	_, err = io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return
+	}
+
+	code = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf)
+
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+	if err != nil {
+		return
+	}
+
+	hash = string(hashBytes)
+	return
+}
+
+func VerifyRecoveryCode(inputCode, storedHash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(inputCode))
+	return err == nil
 }

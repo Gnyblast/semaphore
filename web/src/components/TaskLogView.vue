@@ -77,7 +77,15 @@
       </v-row>
     </v-container>
 
-    <div class="task-log-records" ref="output">
+    <VirtualList
+      class="task-log-records"
+      :data-key="'id'"
+      :data-sources="output"
+      :data-component="itemComponent"
+      :estimate-size="22"
+      :keeps="100"
+      ref="records"
+    >
       <div class="task-log-records__record" v-for="record in output" :key="record.id">
         <div class="task-log-records__time">
           {{ record.time | formatTime }}
@@ -85,7 +93,7 @@
         <div class="task-log-records__output" v-html="$options.filters.formatLog(record.output)">
         </div>
       </div>
-    </div>
+    </VirtualList>
 
     <v-btn
       color="success"
@@ -141,7 +149,7 @@ $task-log-message-height: 48px;
 .v-dialog--fullscreen {
 
   .task-log-records {
-    height: calc(100vh - $task-log-header-height);
+    height: calc(100vh - #{$task-log-header-height});
   }
 
   .task-log-view--with-message .task-log-records {
@@ -179,18 +187,23 @@ $task-log-message-height: 48px;
 import axios from 'axios';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
+import VirtualList from 'vue-virtual-scroll-list';
+import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
 
 export default {
-  components: { TaskStatus },
+  components: { TaskStatus, VirtualList },
   props: {
     itemId: Number,
     projectId: Number,
   },
   data() {
     return {
+      itemComponent: TaskLogViewRecord,
       item: {},
       output: [],
+      outputBuffer: [],
       user: {},
+      autoScroll: true,
     };
   },
 
@@ -221,8 +234,41 @@ export default {
   },
 
   async created() {
+    this.outputInterval = setInterval(() => {
+      this.$nextTick(() => {
+        const len = this.outputBuffer.length;
+        if (len === 0) {
+          return;
+        }
+
+        const scrollContainer = this.$refs.records.$el;
+
+        // Check if the current position is already at the bottom
+        const currentScrollTop = scrollContainer.scrollTop;
+        const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+
+        // Add a new item to the list
+        this.output.push(...this.outputBuffer.splice(0, len));
+
+        // If the user is already at the bottom, keep it scrolled to the bottom
+        // Otherwise, maintain the current scroll position
+        this.$nextTick(() => {
+          if (Math.abs(currentScrollTop - maxScrollTop) <= 1) {
+            // User is at the bottom, scroll to the bottom
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          } else {
+            // User is not at the bottom, preserve current scroll position
+            scrollContainer.scrollTop = currentScrollTop;
+          }
+        });
+      });
+    }, 500);
     socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
+  },
+
+  beforeDestroy() {
+    clearInterval(this.outputInterval);
   },
 
   methods: {
@@ -258,6 +304,8 @@ export default {
     reset() {
       this.item = {};
       this.output = [];
+      this.outputBuffer = [];
+      this.outputInterval = null;
       this.user = {};
     },
 
@@ -274,10 +322,17 @@ export default {
           });
           break;
         case 'log':
-          this.output.push(data);
-          setTimeout(() => {
-            this.$refs.output.scrollTop = this.$refs.output.scrollHeight;
-          }, 200);
+          this.outputBuffer.push({
+            ...data,
+            id: data.time + data.output,
+          });
+
+          // this.$nextTick(() => {
+          //   if (this.$refs.records) {
+          //     this.$refs.records.scrollToBottom();
+          //   }
+          // });
+
           break;
         default:
           break;
@@ -295,7 +350,10 @@ export default {
         method: 'get',
         url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
         responseType: 'json',
-      })).data;
+      })).data.map((item) => ({
+        ...item,
+        id: item.time + item.output,
+      }));
 
       this.user = this.item.user_id ? (await axios({
         method: 'get',

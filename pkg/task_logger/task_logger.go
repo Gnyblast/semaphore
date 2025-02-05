@@ -60,4 +60,6 @@ type Logger interface {
 	AddLogListener(l LogListener)
 
 	SetCommit(hash, message string)
+
+	WaitLog()
 }

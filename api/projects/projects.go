@@ -58,7 +58,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	demoRepo, err = store.CreateRepository(db.Repository{
 		Name:      "Demo",
 		ProjectID: projectID,
-		GitURL:    "https://github.com/semaphoreui/demo-project.git",
+		GitURL:    "https://github.com/semaphoreui/semaphore-demo.git",
 		GitBranch: "main",
 		SSHKeyID:  noneKeyID,
 	})

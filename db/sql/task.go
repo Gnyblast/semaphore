@@ -97,19 +97,30 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 		return err
 	}
 
-	_, err = d.exec(
-		"update task set status=?, start=?, `end`=? where id=?",
-		task.Status,
-		task.Start,
-		task.End,
-		task.ID)
+	if task.CommitHash != nil {
+		_, err = d.exec(
+			"update task set status=?, start=?, `end`=?, commit_hash=?, commit_message=? where id=?",
+			task.Status,
+			task.Start,
+			task.End,
+			task.CommitHash,
+			task.CommitMessage,
+			task.ID)
+	} else {
+		_, err = d.exec(
+			"update task set status=?, start=?, `end`=? where id=?",
+			task.Status,
+			task.Start,
+			task.End,
+			task.ID)
+	}
 
 	return err
 }
 
 func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	_, err := d.exec(
-		"insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)",
+		"insert into task__output (task_id, output, time) VALUES (?, ?, ?)",
 		output.TaskID,
 		output.Output,
 		output.Time.UTC())
@@ -222,7 +233,7 @@ func (d *SqlDb) GetTaskOutputs(projectID int, taskID int) (output []db.TaskOutpu
 	}
 
 	_, err = d.selectAll(&output,
-		"select task_id, task, time, output from task__output where task_id=? order by time asc",
+		"select task_id, time, output from task__output where task_id=? order by id",
 		taskID)
 	return
 }
