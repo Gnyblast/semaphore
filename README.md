@@ -1,3 +1,5 @@
+# This Repository is archived since upstream main repo now contains the same features and more. Please use the `migrate-back-to-upstream.sql` up migrate you repo and use original semaphoreui repository.
+
 # Semaphore UI
 
 Modern UI for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
